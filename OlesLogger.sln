@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OlesLogger", "OlesLogger\OlesLogger.csproj", "{F1963D68-818B-4422-87DF-8CCD9DC02200}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F1963D68-818B-4422-87DF-8CCD9DC02200}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1963D68-818B-4422-87DF-8CCD9DC02200}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1963D68-818B-4422-87DF-8CCD9DC02200}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1963D68-818B-4422-87DF-8CCD9DC02200}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
