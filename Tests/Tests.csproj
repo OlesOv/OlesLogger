@@ -20,4 +20,8 @@
         <Using Include="NUnit.Framework"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\OlesLogger\OlesLogger.csproj" />
+    </ItemGroup>
+
 </Project>

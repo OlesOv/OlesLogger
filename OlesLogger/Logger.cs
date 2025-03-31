@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -13,7 +12,7 @@ public partial class Logger : ILogger
         format ??= "";
         foreach (var logOutput in Outputs)
         {
-            var appliedTemplate = ParseTemplate(format!, args);
+            var appliedTemplate = ParseTemplate(format, args);
             var entry = new LogEntry
             {
                 TimeStamp = logTimeStamp,
