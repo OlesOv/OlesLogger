@@ -18,7 +18,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         if (_config.BufferTimeoutMs > 0)
         {
             _flushTimer = new Timer(
-                async void (_) => await FlushBufferAsync(false), 
+                (_) => FlushBufferAsync().GetAwaiter().GetResult(), 
                 null, 
                 _config.BufferTimeoutMs, 
                 _config.BufferTimeoutMs);
@@ -64,19 +64,16 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         
         bool shouldFlush = _buffer.Count == 1;
         
-        // Check buffer count
         if (_buffer.Count >= _config.BufferCountLimit)
         {
             shouldFlush = true;
         }
         
-        // Check buffer size limit
         if (_config.BufferSizeLimit > 0 && _currentBufferSize >= _config.BufferSizeLimit)
         {
             shouldFlush = true;
         }
         
-        // Check timeout (if timer is not being used)
         if (_config.BufferTimeoutMs > 0 && _flushTimer == null && 
             (DateTimeOffset.UtcNow - _lastFlushTime).TotalMilliseconds >= _config.BufferTimeoutMs)
         {
@@ -85,21 +82,19 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         
         if (shouldFlush)
         {
-            await FlushBufferAsync(false);
+            await FlushBufferAsync();
         }
     }
     
-    private async ValueTask FlushBufferAsync(bool forceLock)
+    private async ValueTask FlushBufferAsync()
     {
         if (_buffer.IsEmpty || _config.Disposed) return;
         
-        bool lockTaken = false;
         try
         {
-            if (forceLock || !_buffer.IsEmpty)
+            if (!_buffer.IsEmpty)
             {
                 await _semaphore.WaitAsync();
-                lockTaken = true;
                 
                 if (_buffer.IsEmpty) return;
                 
@@ -125,10 +120,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         }
         finally
         {
-            if (lockTaken)
-            {
-                _semaphore.Release();
-            }
+            _semaphore.Release();
         }
     }
 
@@ -142,7 +134,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
             _flushTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             if(_flushTimer != null) await _flushTimer.DisposeAsync();
         
-            await FlushBufferAsync(true);
+            await FlushBufferAsync();
             if (_config.Writer != null)
             {
                 await _config.Writer.DisposeAsync();
