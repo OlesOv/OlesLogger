@@ -17,6 +17,23 @@ public static class FileLogOutputExtensions
         return configuration;
     }
 
+            public static FileLogOutputConfiguration SetBufferSize(this FileLogOutputConfiguration configuration, int bufferSize)
+            {
+        configuration.BufferCountLimit = bufferSize;
+        return configuration;
+            }
+            
+            public static FileLogOutputConfiguration SetBufferTimeoutMs(this FileLogOutputConfiguration configuration, int timeoutMs)
+            {
+        configuration.BufferTimeoutMs = timeoutMs;
+        return configuration;
+            }
+            
+            public static FileLogOutputConfiguration SetBufferSizeLimit(this FileLogOutputConfiguration configuration, int sizeInBytes)
+            {
+        configuration.BufferSizeLimit = sizeInBytes;
+        return configuration;
+            }
     public static FileLogOutputConfiguration SetRollingInterval(this FileLogOutputConfiguration configuration, TimeSpan interval)
     {
         configuration.RollingInterval = interval;

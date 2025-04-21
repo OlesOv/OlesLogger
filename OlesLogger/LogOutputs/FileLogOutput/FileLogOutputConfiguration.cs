@@ -2,7 +2,7 @@ namespace OlesLogger.LogOutputs.FileLogOutput;
 
 public class FileLogOutputConfiguration
 {
-    private string _filePath = null!;
+    private string? _filePath;
 
     public FileLogOutputConfiguration()
     {
@@ -35,23 +35,43 @@ public class FileLogOutputConfiguration
 
     internal string FilePath
     {
-        get => _filePath;
+        get => _filePath ?? "";
         set
         {
+            if (_filePath != null) return;
             _filePath = value;
             ReinitConfig(_filePath);
         }
     }
 
     /// <summary>
-    /// Specifies the timespan for rolling the log file. TimeSpan.Zero means the file never rolls based on time.
+    /// Specifies the timespan for rolling the log file.
+    /// Set to TimeSpan.Zero to never roll based on time.
     /// </summary>
     internal TimeSpan RollingInterval { get; set; } = TimeSpan.Zero;
 
     /// <summary>
-    /// Specifies the Size Limit in MiB for rolling the log file. 0 means the file never rolls based on size.
+    /// Specifies the Size Limit in MiB for rolling the log file.
+    /// Set to 0 to never roll based on size.
     /// </summary>
     internal int RollingSizeLimitMib { get; set; } = 0;
+
+    /// <summary>
+    /// Maximum number of log entries to buffer before writing to file. Default is 10.
+    /// </summary>
+    internal int BufferCountLimit { get; set; } = 10;
+
+    /// <summary>
+    /// Maximum time in milliseconds to hold entries in buffer before writing to file.
+    /// Default is 1000ms (1 second). Set to 0 to disable time-based flushing.
+    /// </summary>
+    internal int BufferTimeoutMs { get; set; } = 1000;
+
+    /// <summary>
+    /// Maximum total size of buffered entries in bytes before writing to file.
+    /// Default is 16KB. Set to 0 to disable size-based flushing.
+    /// </summary>
+    internal int BufferSizeLimit { get; set; } = 16 * 1024;
 
     internal bool Disposed { get; set; } = false;
     internal StreamWriter? Writer { get; set; }

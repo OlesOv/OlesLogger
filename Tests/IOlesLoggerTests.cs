@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Moq;
+﻿using Moq;
 using OlesLogger;
 using OlesLogger.Configuration;
 using OlesLogger.LogOutputs;
