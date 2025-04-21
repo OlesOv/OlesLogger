@@ -1,24 +1,23 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Moq;
 using OlesLogger;
+using OlesLogger.Configuration;
+using OlesLogger.LogOutputs;
 
 namespace Tests;
 
 public class Tests
 {
-    private Mock<IConfiguration> _mockConfiguration;
+    private OlesLoggerConfiguration _loggerConfiguration;
     private Mock<ILogOutput> _mockLogOutput;
 
     [SetUp]
     public void Setup()
     {
-        _mockConfiguration = new Mock<IConfiguration>();
+        _loggerConfiguration = new OlesLoggerConfiguration("[{LogLevel}] {FormattedMessage}");
         _mockLogOutput = new Mock<ILogOutput>();
 
-        // Reset the static Outputs list before each test
-        // TODO: fix this static nightmare
-        typeof(IOlesLogger).GetField("Outputs", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)?.SetValue(null, new List<ILogOutput>());
-        IOlesLogger.AddLogOutput(_mockLogOutput.Object);
+        _loggerConfiguration.AddLogOutput(_mockLogOutput.Object);
     }
 
     [Test]
@@ -29,16 +28,15 @@ public class Tests
         var expectedFormattedMessage = "Test message";
         var expectedLogLevel = LogLevel.Information;
         var expectedGeneralFormattedMessage = $"[{expectedLogLevel}] {expectedFormattedMessage}";
-        _mockConfiguration.Setup(config => config.GetSection("OlesLogger").GetSection("DefaultFormat").Value).Returns("[{LogLevel}] {FormattedMessage}");
 
-        IOlesLogger logger = new OlesLogger.OlesLogger(_mockConfiguration.Object);
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
         // Act
         logger.Write(expectedLogLevel, message);
 
         // Assert
         _mockLogOutput.Verify(
-            output => output.WriteEntry(It.Is<LogEntry>(entry =>
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
                 entry.Template == "Test message" &&
                 entry.FormattedMessage == expectedFormattedMessage &&
@@ -57,21 +55,24 @@ public class Tests
         var name = "John Doe";
         var expectedFormattedMessage = $"User {id} logged in with name {name}";
         var expectedLogLevel = LogLevel.Information;
-        _mockConfiguration.Setup(config => config.GetSection("OlesLogger").GetSection("DefaultFormat").Value).Returns("{TimeStamp} - {FormattedMessage}");
 
-        IOlesLogger logger = new OlesLogger.OlesLogger(_mockConfiguration.Object);
+        _loggerConfiguration.GeneralFormat = "{TimeStamp} - {FormattedMessage}";
+
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
         // Act
         logger.Write(expectedLogLevel, template, id, name);
 
         // Assert
         _mockLogOutput.Verify(
-            output => output.WriteEntry(It.Is<LogEntry>(entry =>
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
                 entry.Template == template &&
                 entry.FormattedMessage == expectedFormattedMessage &&
-                entry.Arguments.ContainsKey("Id") && entry.Arguments["Id"].Equals(id) == true &&
-                entry.Arguments.ContainsKey("Name") && entry.Arguments["Name"].Equals(name) == true &&
+                entry.Arguments.Any(a => a.key == "Id" && string.Equals(a.value!.ToString(), id.ToString(),
+                    StringComparison.InvariantCultureIgnoreCase)) &&
+                entry.Arguments.Any(a => a.key == "Name" && string.Equals(a.value!.ToString(), name,
+                    StringComparison.InvariantCultureIgnoreCase)) &&
                 entry.GeneralFormattedMessage.Contains(expectedFormattedMessage)
             )),
             Times.Once
@@ -86,21 +87,59 @@ public class Tests
         var id = 123;
         var expectedFormattedMessage = $"User {id} logged in with name {{Name}}";
         var expectedLogLevel = LogLevel.Information;
-        _mockConfiguration.Setup(config => config.GetSection("OlesLogger").GetSection("DefaultFormat").Value).Returns("{FormattedMessage}");
+        _loggerConfiguration.GeneralFormat = "{FormattedMessage}";
 
-        IOlesLogger logger = new OlesLogger.OlesLogger(_mockConfiguration.Object);
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
         // Act
         logger.Write(expectedLogLevel, template, id);
 
         // Assert
         _mockLogOutput.Verify(
-            output => output.WriteEntry(It.Is<LogEntry>(entry =>
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
                 entry.Template == template &&
                 entry.FormattedMessage == expectedFormattedMessage &&
-                entry.Arguments.ContainsKey("Id") && entry.Arguments["Id"].Equals(id) == true &&
-                entry.Arguments.ContainsKey("Name") && entry.Arguments["Name"] == null
+                entry.Arguments.Any(a => a.key == "Id" && string.Equals(a.value!.ToString(), id.ToString(),
+                    StringComparison.InvariantCultureIgnoreCase)) &&
+                entry.Arguments.Any(a =>
+                    a.key == "Name" && Equals(a.value, null))
+            )),
+            Times.Once
+        );
+    }
+
+    [Test]
+    public void Write_MessageWithMultipleArgumentsWithSamename_LogsCorrectly()
+    {
+        // Arrange
+        var template = "User {Id} logged in with name {Name}. Approved by admin {Name}";
+        var id = 123;
+        var name = "John Doe";
+        var adminName = "Jane Doe";
+        var expectedFormattedMessage = $"User {id} logged in with name {name}. Approved by admin {adminName}";
+        var expectedLogLevel = LogLevel.Information;
+        _loggerConfiguration.GeneralFormat = "{FormattedMessage}";
+
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
+
+        // Act
+        logger.Write(expectedLogLevel, template, id, name, adminName);
+
+        // Assert
+        _mockLogOutput.Verify(
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
+                entry.LogLevel == expectedLogLevel &&
+                entry.Template == template &&
+                entry.FormattedMessage == expectedFormattedMessage &&
+                entry.Arguments.Any(a => a.key == "Id" && string.Equals(a.value!.ToString(), id.ToString(),
+                    StringComparison.InvariantCultureIgnoreCase)) &&
+                entry.Arguments.Any(a =>
+                    a.key == "Name" && string.Equals(a.value!.ToString(), name,
+                        StringComparison.InvariantCultureIgnoreCase)) &&
+                entry.Arguments.Any(a =>
+                    a.key == "Name" && string.Equals(a.value!.ToString(), adminName,
+                        StringComparison.InvariantCultureIgnoreCase))
             )),
             Times.Once
         );
@@ -111,16 +150,16 @@ public class Tests
     {
         // Arrange
         var expectedLogLevel = LogLevel.Error;
-        _mockConfiguration.Setup(config => config.GetSection("OlesLogger").GetSection("DefaultFormat").Value).Returns("{FormattedMessage}");
+        _loggerConfiguration.GeneralFormat = "{GeneralFormattedMessage}";
 
-        IOlesLogger logger = new OlesLogger.OlesLogger(_mockConfiguration.Object);
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
         // Act
         logger.Write(expectedLogLevel, null);
 
         // Assert
         _mockLogOutput.Verify(
-            output => output.WriteEntry(It.Is<LogEntry>(entry =>
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
                 entry.Template == "" &&
                 entry.FormattedMessage == ""
@@ -133,9 +172,9 @@ public class Tests
     public void LogLevelMethods_CallWriteWithCorrectLevel()
     {
         // Arrange
-        _mockConfiguration.Setup(config => config.GetSection("OlesLogger").GetSection("DefaultFormat").Value).Returns("");
+        _loggerConfiguration.GeneralFormat = "";
 
-        IOlesLogger logger = new OlesLogger.OlesLogger(_mockConfiguration.Object);
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
         var message = "Test message";
 
         // Act
@@ -146,11 +185,21 @@ public class Tests
         logger.Verbose(message);
 
         // Assert
-        _mockLogOutput.Verify(output => output.WriteEntry(It.Is<LogEntry>(entry => entry.LogLevel == LogLevel.Critical && entry.Template == message)), Times.Once);
-        _mockLogOutput.Verify(output => output.WriteEntry(It.Is<LogEntry>(entry => entry.LogLevel == LogLevel.Error && entry.Template == message)), Times.Once);
-        _mockLogOutput.Verify(output => output.WriteEntry(It.Is<LogEntry>(entry => entry.LogLevel == LogLevel.Warning && entry.Template == message)), Times.Once);
-        _mockLogOutput.Verify(output => output.WriteEntry(It.Is<LogEntry>(entry => entry.LogLevel == LogLevel.Information && entry.Template == message)), Times.Once);
-        _mockLogOutput.Verify(output => output.WriteEntry(It.Is<LogEntry>(entry => entry.LogLevel == LogLevel.Verbose && entry.Template == message)), Times.Once);
+        _mockLogOutput.Verify(
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
+                entry.LogLevel == LogLevel.Critical && entry.Template == message)), Times.Once);
+        _mockLogOutput.Verify(
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
+                entry.LogLevel == LogLevel.Error && entry.Template == message)), Times.Once);
+        _mockLogOutput.Verify(
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
+                entry.LogLevel == LogLevel.Warning && entry.Template == message)), Times.Once);
+        _mockLogOutput.Verify(
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
+                entry.LogLevel == LogLevel.Information && entry.Template == message)), Times.Once);
+        _mockLogOutput.Verify(
+            output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
+                entry.LogLevel == LogLevel.Verbose && entry.Template == message)), Times.Once);
     }
 
     [Test]
@@ -159,15 +208,16 @@ public class Tests
         // Arrange
         var message = "Formatted message content";
         var defaultFormat = "{LogLevel}: {FormattedMessage}";
-        _mockConfiguration.Setup(config => config.GetSection("OlesLogger").GetSection("DefaultFormat").Value).Returns(defaultFormat);
 
-        IOlesLogger logger = new OlesLogger.OlesLogger(_mockConfiguration.Object);
+        _loggerConfiguration.GeneralFormat = defaultFormat;
+
+        IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
         // Act
         logger.Write(LogLevel.Verbose, message);
 
         // Assert
-        _mockLogOutput.Verify(output => output.WriteEntry(It.Is<LogEntry>(entry =>
+        _mockLogOutput.Verify(output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
             entry.GeneralFormattedMessage == $"Verbose: {message}"
         )), Times.Once);
     }

@@ -6,6 +6,6 @@ public class LogEntry : ILogEntry
     public LogLevel LogLevel { get; init; }
     public string Template { get; set; } = "";
     public string FormattedMessage { get; set; } = "";
-    public string GeneralFormattedMessage { get; set; }
-    public IDictionary<string, object?> Arguments { get; set; } = new Dictionary<string, object?>();
+    public string GeneralFormattedMessage { get; set; } = "";
+    public IList<(string key, object? value)> Arguments { get; set; } = new List<(string key, object? value)>();
 }
