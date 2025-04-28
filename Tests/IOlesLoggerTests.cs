@@ -25,8 +25,8 @@ public class Tests
         // Arrange
         var message = "Test message";
         var expectedFormattedMessage = "Test message";
-        var expectedLogLevel = LogLevel.Information;
-        var expectedGeneralFormattedMessage = $"[{expectedLogLevel}] {expectedFormattedMessage}";
+        var expectedLogLevel = LogLevels.Information;
+        var expectedFinalFormatMessage = $"[{expectedLogLevel}] {expectedFormattedMessage}";
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
@@ -37,9 +37,9 @@ public class Tests
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
-                entry.Template == "Test message" &&
+                entry.MessageTemplate == "Test message" &&
                 entry.FormattedMessage == expectedFormattedMessage &&
-                entry.GeneralFormattedMessage.Equals(expectedGeneralFormattedMessage)
+                entry.FinalFormattedMessage.Equals(expectedFinalFormatMessage)
             )),
             Times.Once
         );
@@ -53,9 +53,9 @@ public class Tests
         var id = 123;
         var name = "John Doe";
         var expectedFormattedMessage = $"User {id} logged in with name {name}";
-        var expectedLogLevel = LogLevel.Information;
+        var expectedLogLevel = LogLevels.Information;
 
-        _loggerConfiguration.GeneralFormat = "{TimeStamp} - {FormattedMessage}";
+        _loggerConfiguration.FinalFormatTemplate = "{TimeStamp} - {FormattedMessage}";
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
@@ -66,13 +66,13 @@ public class Tests
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
-                entry.Template == template &&
+                entry.MessageTemplate == template &&
                 entry.FormattedMessage == expectedFormattedMessage &&
                 entry.Arguments.Any(a => a.key == "Id" && string.Equals(a.value!.ToString(), id.ToString(),
                     StringComparison.InvariantCultureIgnoreCase)) &&
                 entry.Arguments.Any(a => a.key == "Name" && string.Equals(a.value!.ToString(), name,
                     StringComparison.InvariantCultureIgnoreCase)) &&
-                entry.GeneralFormattedMessage.Contains(expectedFormattedMessage)
+                entry.FinalFormattedMessage.Contains(expectedFormattedMessage)
             )),
             Times.Once
         );
@@ -85,8 +85,8 @@ public class Tests
         var template = "User {Id} logged in with name {Name}";
         var id = 123;
         var expectedFormattedMessage = $"User {id} logged in with name {{Name}}";
-        var expectedLogLevel = LogLevel.Information;
-        _loggerConfiguration.GeneralFormat = "{FormattedMessage}";
+        var expectedLogLevel = LogLevels.Information;
+        _loggerConfiguration.FinalFormatTemplate = "{FormattedMessage}";
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
@@ -97,7 +97,7 @@ public class Tests
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
-                entry.Template == template &&
+                entry.MessageTemplate == template &&
                 entry.FormattedMessage == expectedFormattedMessage &&
                 entry.Arguments.Any(a => a.key == "Id" && string.Equals(a.value!.ToString(), id.ToString(),
                     StringComparison.InvariantCultureIgnoreCase)) &&
@@ -117,8 +117,8 @@ public class Tests
         var name = "John Doe";
         var adminName = "Jane Doe";
         var expectedFormattedMessage = $"User {id} logged in with name {name}. Approved by admin {adminName}";
-        var expectedLogLevel = LogLevel.Information;
-        _loggerConfiguration.GeneralFormat = "{FormattedMessage}";
+        var expectedLogLevel = LogLevels.Information;
+        _loggerConfiguration.FinalFormatTemplate = "{FormattedMessage}";
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
@@ -129,7 +129,7 @@ public class Tests
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
-                entry.Template == template &&
+                entry.MessageTemplate == template &&
                 entry.FormattedMessage == expectedFormattedMessage &&
                 entry.Arguments.Any(a => a.key == "Id" && string.Equals(a.value!.ToString(), id.ToString(),
                     StringComparison.InvariantCultureIgnoreCase)) &&
@@ -148,8 +148,8 @@ public class Tests
     public void Write_NullMessageTemplate_LogsEmptyTemplateAndMessage()
     {
         // Arrange
-        var expectedLogLevel = LogLevel.Error;
-        _loggerConfiguration.GeneralFormat = "{GeneralFormattedMessage}";
+        var expectedLogLevel = LogLevels.Error;
+        _loggerConfiguration.FinalFormatTemplate = "{FormattedMessage}";
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
@@ -160,7 +160,7 @@ public class Tests
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
                 entry.LogLevel == expectedLogLevel &&
-                entry.Template == "" &&
+                entry.MessageTemplate == "" &&
                 entry.FormattedMessage == ""
             )),
             Times.Once
@@ -171,7 +171,7 @@ public class Tests
     public void LogLevelMethods_CallWriteWithCorrectLevel()
     {
         // Arrange
-        _loggerConfiguration.GeneralFormat = "";
+        _loggerConfiguration.FinalFormatTemplate = "";
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
         var message = "Test message";
@@ -186,19 +186,19 @@ public class Tests
         // Assert
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
-                entry.LogLevel == LogLevel.Critical && entry.Template == message)), Times.Once);
+                entry.LogLevel == LogLevels.Critical && entry.MessageTemplate == message)), Times.Once);
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
-                entry.LogLevel == LogLevel.Error && entry.Template == message)), Times.Once);
+                entry.LogLevel == LogLevels.Error && entry.MessageTemplate == message)), Times.Once);
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
-                entry.LogLevel == LogLevel.Warning && entry.Template == message)), Times.Once);
+                entry.LogLevel == LogLevels.Warning && entry.MessageTemplate == message)), Times.Once);
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
-                entry.LogLevel == LogLevel.Information && entry.Template == message)), Times.Once);
+                entry.LogLevel == LogLevels.Information && entry.MessageTemplate == message)), Times.Once);
         _mockLogOutput.Verify(
             output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
-                entry.LogLevel == LogLevel.Verbose && entry.Template == message)), Times.Once);
+                entry.LogLevel == LogLevels.Verbose && entry.MessageTemplate == message)), Times.Once);
     }
 
     [Test]
@@ -208,16 +208,16 @@ public class Tests
         var message = "Formatted message content";
         var defaultFormat = "{LogLevel}: {FormattedMessage}";
 
-        _loggerConfiguration.GeneralFormat = defaultFormat;
+        _loggerConfiguration.FinalFormatTemplate = defaultFormat;
 
         IOlesLogger logger = new OlesLogger.OlesLogger(_loggerConfiguration);
 
         // Act
-        logger.Write(LogLevel.Verbose, message);
+        logger.Write(LogLevels.Verbose, message);
 
         // Assert
         _mockLogOutput.Verify(output => output.WriteEntryAsync(It.Is<LogEntry>(entry =>
-            entry.GeneralFormattedMessage == $"Verbose: {message}"
+            entry.FinalFormattedMessage == $"Verbose: {message}"
         )), Times.Once);
     }
 }

@@ -4,33 +4,33 @@ namespace OlesLogger.LogOutputs.ConsoleLogOutput;
 
 public sealed class ConsoleLogOutput : ILogOutput
 {
-    public Task WriteEntryAsync(ILogEntry entry)
+    public Task WriteEntryAsync(ILogEntry logEntry)
     {
         var builder = new StringBuilder();
-        builder.AppendLine(entry.GeneralFormattedMessage)
+        builder.AppendLine(logEntry.FinalFormattedMessage)
             .Append('{')
             .Append('\t').AppendLine($"""
-                                      "{nameof(entry.TimeStamp)}": "{entry.TimeStamp}"
+                                      "{nameof(logEntry.TimeStamp)}": "{logEntry.TimeStamp}"
                                       """)
             .Append('\t').AppendLine($"""
-                                      "{nameof(entry.LogLevel)}": "{entry.LogLevel}"
+                                      "{nameof(logEntry.LogLevel)}": "{logEntry.LogLevel}"
                                       """)
             .Append('\t').AppendLine($"""
-                                      "{nameof(entry.Template)}": "{entry.Template}"
+                                      "{nameof(logEntry.MessageTemplate)}": "{logEntry.MessageTemplate}"
                                       """)
             .Append('\t').AppendLine($"""
-                                      "{nameof(entry.FormattedMessage)}": "{entry.FormattedMessage}"
+                                      "{nameof(logEntry.FormattedMessage)}": "{logEntry.FormattedMessage}"
                                       """)
             .Append('\t').AppendLine($"""
-                                      "{nameof(entry.GeneralFormattedMessage)}": "{entry.GeneralFormattedMessage}"
+                                      "{nameof(logEntry.FinalFormattedMessage)}": "{logEntry.FinalFormattedMessage}"
                                       """)
             .Append('\t').Append($"""
-                                  "{nameof(entry.Arguments)}": [
+                                  "{nameof(logEntry.Arguments)}": [
                                   """);
-            foreach (var pair in entry.Arguments)
+            foreach (var keyValue in logEntry.Arguments)
             {
                 builder.AppendLine().Append('\t').Append('\t').AppendLine($"""
-                                                                           "{pair.key}": {pair.value},
+                                                                           "{keyValue.key}": {keyValue.value},
                                                                            """);
             }
 

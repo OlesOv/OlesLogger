@@ -2,11 +2,11 @@ namespace OlesLogger;
 
 public interface IOlesLogger
 {
-    void Write(LogLevel level, string? messageTemplate, params ReadOnlySpan<object?> args);
+    void Write(LogLevels logLevel, string? messageTemplate, params ReadOnlySpan<object?> args);
 
-    void Critical(string format, params ReadOnlySpan<object?> args) => Write(LogLevel.Critical, format, args);
-    void Error(string format, params ReadOnlySpan<object?> args) => Write(LogLevel.Error, format, args);
-    void Warning(string format, params ReadOnlySpan<object?> args) => Write(LogLevel.Warning, format, args);
-    void Information(string format, params ReadOnlySpan<object?> args) => Write(LogLevel.Information, format, args);
-    void Verbose(string format, params ReadOnlySpan<object?> args) => Write(LogLevel.Verbose, format, args);
+    void Critical(string messageTemplate, params ReadOnlySpan<object?> args) => Write(LogLevels.Critical, messageTemplate, args);
+    void Error(string messageTemplate, params ReadOnlySpan<object?> args) => Write(LogLevels.Error, messageTemplate, args);
+    void Warning(string messageTemplate, params ReadOnlySpan<object?> args) => Write(LogLevels.Warning, messageTemplate, args);
+    void Information(string messageTemplate, params ReadOnlySpan<object?> args) => Write(LogLevels.Information, messageTemplate, args);
+    void Verbose(string messageTemplate, params ReadOnlySpan<object?> args) => Write(LogLevels.Verbose, messageTemplate, args);
 }

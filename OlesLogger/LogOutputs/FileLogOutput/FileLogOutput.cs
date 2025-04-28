@@ -5,77 +5,77 @@ namespace OlesLogger.LogOutputs.FileLogOutput;
 
 public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
 {
-    private readonly FileLogOutputConfiguration _config;
+    private readonly FileLogOutputConfiguration _fileLogOutputConfiguration;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly ConcurrentQueue<ILogEntry> _buffer = new();
     private int _currentBufferSize = 0;
     private DateTimeOffset _lastFlushTime = DateTimeOffset.UtcNow;
     private readonly Timer? _flushTimer;
     
-    public FileLogOutput(FileLogOutputConfiguration config)
+    public FileLogOutput(FileLogOutputConfiguration fileLogOutputConfiguration)
     {
-        _config = config;
-        if (_config.BufferTimeoutMs > 0)
+        _fileLogOutputConfiguration = fileLogOutputConfiguration;
+        if (_fileLogOutputConfiguration.BufferTimeoutMs > 0)
         {
             _flushTimer = new Timer(
                 (_) => FlushBufferAsync().GetAwaiter().GetResult(), 
                 null, 
-                _config.BufferTimeoutMs, 
-                _config.BufferTimeoutMs);
+                _fileLogOutputConfiguration.BufferTimeoutMs, 
+                _fileLogOutputConfiguration.BufferTimeoutMs);
         }
     }
 
     private void EnsureWriterInitialized()
     {
-        if (_config.Writer != null) return;
+        if (_fileLogOutputConfiguration.Writer != null) return;
         
-        _config.Writer ??= new StreamWriter(_config.CurrentFilePath, true, Encoding.UTF8);;
+        _fileLogOutputConfiguration.Writer ??= new StreamWriter(_fileLogOutputConfiguration.CurrentFilePath, true, Encoding.UTF8);;
     }
 
     private async ValueTask EnsureFileRolledAsync()
     {
-        if(_config.Disposed || _config.Writer == null) return;
+        if(_fileLogOutputConfiguration.Disposed || _fileLogOutputConfiguration.Writer == null) return;
         
-        if ((_config.RollingSizeLimitMib != 0 && _config.Writer.BaseStream.Length >= _config.RollingSizeLimitMib * 1024 * 1024)
-            || (_config.RollingInterval != TimeSpan.Zero 
-                && DateTimeOffset.UtcNow - _config.LastRollDateTimeOffset >= _config.RollingInterval))
+        if ((_fileLogOutputConfiguration.RollingSizeLimitMib != 0 && _fileLogOutputConfiguration.Writer.BaseStream.Length >= _fileLogOutputConfiguration.RollingSizeLimitMib * 1024 * 1024)
+            || (_fileLogOutputConfiguration.RollingInterval != TimeSpan.Zero 
+                && DateTimeOffset.UtcNow - _fileLogOutputConfiguration.LastRollDateTimeOffset >= _fileLogOutputConfiguration.RollingInterval))
         {
             await RollFileAsync();
-            _config.LastRollDateTimeOffset = DateTimeOffset.UtcNow;
+            _fileLogOutputConfiguration.LastRollDateTimeOffset = DateTimeOffset.UtcNow;
         }
     }
 
     private async ValueTask RollFileAsync()
     {
-        if (_config.Writer != null)
+        if (_fileLogOutputConfiguration.Writer != null)
         {
-            await _config.Writer.DisposeAsync();
-            _config.Writer = null;
+            await _fileLogOutputConfiguration.Writer.DisposeAsync();
+            _fileLogOutputConfiguration.Writer = null;
         }
-        _config.CurrentFilePath = string.Format(_config.FilePathTemplate, _config.FileNameBase, _config.CurrentFileNumber++);
+        _fileLogOutputConfiguration.CurrentFilePath = string.Format(_fileLogOutputConfiguration.FilePathTemplate, _fileLogOutputConfiguration.FileNameBase, _fileLogOutputConfiguration.CurrentFileNumber++);
     }
 
-    public async Task WriteEntryAsync(ILogEntry entry)
+    public async Task WriteEntryAsync(ILogEntry logEntry)
     {
-        ObjectDisposedException.ThrowIf(_config.Disposed, nameof(FileLogOutput));
+        ObjectDisposedException.ThrowIf(_fileLogOutputConfiguration.Disposed, nameof(FileLogOutput));
         
-        _buffer.Enqueue(entry);
-        Interlocked.Add(ref _currentBufferSize, entry.GeneralFormattedMessage.Length * sizeof(char));
+        _buffer.Enqueue(logEntry);
+        Interlocked.Add(ref _currentBufferSize, logEntry.FinalFormattedMessage.Length * sizeof(char));
         
         bool shouldFlush = _buffer.Count == 1;
         
-        if (_buffer.Count >= _config.BufferCountLimit)
+        if (_buffer.Count >= _fileLogOutputConfiguration.BufferCountLimit)
         {
             shouldFlush = true;
         }
         
-        if (_config.BufferSizeLimit > 0 && _currentBufferSize >= _config.BufferSizeLimit)
+        if (_fileLogOutputConfiguration.BufferSizeLimit > 0 && _currentBufferSize >= _fileLogOutputConfiguration.BufferSizeLimit)
         {
             shouldFlush = true;
         }
         
-        if (_config.BufferTimeoutMs > 0 && _flushTimer == null && 
-            (DateTimeOffset.UtcNow - _lastFlushTime).TotalMilliseconds >= _config.BufferTimeoutMs)
+        if (_fileLogOutputConfiguration.BufferTimeoutMs > 0 && _flushTimer == null && 
+            (DateTimeOffset.UtcNow - _lastFlushTime).TotalMilliseconds >= _fileLogOutputConfiguration.BufferTimeoutMs)
         {
             shouldFlush = true;
         }
@@ -88,7 +88,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
     
     private async ValueTask FlushBufferAsync()
     {
-        if (_buffer.IsEmpty || _config.Disposed) return;
+        if (_buffer.IsEmpty || _fileLogOutputConfiguration.Disposed) return;
         
         try
         {
@@ -103,15 +103,15 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
                 
                 while (_buffer.TryDequeue(out var entry))
                 {
-                    if (_config.Writer != null)
+                    if (_fileLogOutputConfiguration.Writer != null)
                     {
-                        await _config.Writer.WriteLineAsync(entry.GeneralFormattedMessage);
+                        await _fileLogOutputConfiguration.Writer.WriteLineAsync(entry.FinalFormattedMessage);
                     }
                 }
                 
-                if (_config.Writer != null)
+                if (_fileLogOutputConfiguration.Writer != null)
                 {
-                    await _config.Writer.FlushAsync();
+                    await _fileLogOutputConfiguration.Writer.FlushAsync();
                 }
                 
                 Interlocked.Exchange(ref _currentBufferSize, 0);
@@ -126,7 +126,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_config.Disposed) return;
+        if (_fileLogOutputConfiguration.Disposed) return;
         
         await _semaphore.WaitAsync();
         try
@@ -135,13 +135,13 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
             if(_flushTimer != null) await _flushTimer.DisposeAsync();
         
             await FlushBufferAsync();
-            if (_config.Writer != null)
+            if (_fileLogOutputConfiguration.Writer != null)
             {
-                await _config.Writer.DisposeAsync();
-                _config.Writer = null;
+                await _fileLogOutputConfiguration.Writer.DisposeAsync();
+                _fileLogOutputConfiguration.Writer = null;
             }
 
-            _config.Disposed = true;
+            _fileLogOutputConfiguration.Disposed = true;
         }
         finally
         {

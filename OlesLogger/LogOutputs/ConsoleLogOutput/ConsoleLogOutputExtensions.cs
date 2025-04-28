@@ -4,8 +4,8 @@ namespace OlesLogger.LogOutputs.ConsoleLogOutput;
 
 public static class ConsoleLogOutputExtensions
 {
-    public static OlesLoggerConfiguration AddConsoleOutput(this OlesLoggerConfiguration configuration)
+    public static OlesLoggerConfiguration AddConsoleOutput(this OlesLoggerConfiguration loggerConfiguration)
     {
-        return configuration.AddLogOutput(new ConsoleLogOutput());
+        return loggerConfiguration.AddLogOutput(new ConsoleLogOutput());
     }
 }

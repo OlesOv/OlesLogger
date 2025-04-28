@@ -8,15 +8,15 @@ public sealed class OlesLoggerConfiguration
     public OlesLoggerConfiguration()
     {
     }
-    public OlesLoggerConfiguration(string generalFormat)
+    public OlesLoggerConfiguration(string finalFormatTemplate)
     {
-        GeneralFormat = generalFormat;
+        FinalFormatTemplate = finalFormatTemplate;
     }
     public OlesLoggerConfiguration(IConfiguration configuration)
     {
         configuration.GetSection("OlesLogger").Bind(this);
     }
 
-    public string GeneralFormat { get; set; } = "{FormattedMessage}";
+    public string FinalFormatTemplate { get; set; } = "{FormattedMessage}";
     internal List<ILogOutput> Outputs { get; } = [];
 }

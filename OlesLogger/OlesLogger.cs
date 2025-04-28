@@ -4,10 +4,10 @@ using OlesLogger.Configuration;
 
 namespace OlesLogger;
 
-public record struct GeneralTemplateFormatParameters(
-    string GeneralTemplate,
+public record struct FinalFormatParameters(
+    string FinalFormatTemplate,
     DateTimeOffset TimeStamp,
-    LogLevel Level,
+    LogLevels LogLevel,
     string MessageTemplate,
     string FormattedMessage,
     string Arguments);
@@ -19,16 +19,16 @@ public partial class OlesLogger(OlesLoggerConfiguration configuration) : IOlesLo
     [GeneratedRegex(@"\{(.*?)\}")]
     private static partial Regex GetParametersRegex();
 
-    public void Write(LogLevel level, string? messageTemplate, params ReadOnlySpan<object?> args)
+    public void Write(LogLevels logLevel, string? messageTemplate, params ReadOnlySpan<object?> args)
     {
         var logTimeStamp = DateTimeOffset.UtcNow;
         messageTemplate ??= "";
         var appliedTemplate = ParseAndApplyMessageTemplate(messageTemplate, args);
-        string generalFormattedMessage = GetMessageWithGeneralTemplate(new GeneralTemplateFormatParameters()
+        string finalFormattedMessage = GetFinalFormattedString(new FinalFormatParameters()
         {
-            GeneralTemplate = configuration.GeneralFormat,
+            FinalFormatTemplate = configuration.FinalFormatTemplate,
             TimeStamp = logTimeStamp,
-            Level = level,
+            LogLevel = logLevel,
             MessageTemplate = messageTemplate,
             FormattedMessage = appliedTemplate.formattedMessage,
             Arguments = appliedTemplate.arguments.ToString() ?? "[]"
@@ -36,11 +36,11 @@ public partial class OlesLogger(OlesLoggerConfiguration configuration) : IOlesLo
         var entry = new LogEntry
         {
             TimeStamp = logTimeStamp,
-            LogLevel = level,
-            Template = messageTemplate,
+            LogLevel = logLevel,
+            MessageTemplate = messageTemplate,
             FormattedMessage = appliedTemplate.formattedMessage,
             Arguments = appliedTemplate.arguments,
-            GeneralFormattedMessage = generalFormattedMessage
+            FinalFormattedMessage = finalFormattedMessage
         };
 
         Task.WhenAll(
@@ -55,18 +55,18 @@ public partial class OlesLogger(OlesLoggerConfiguration configuration) : IOlesLo
         var argumentsList = new List<(string key, object? value)>();
         var formattedMessage = new StringBuilder(messageTemplate);
         var matches = GetParametersRegex().Matches(messageTemplate);
-        for (int i = 0; i < matches.Count; i++)
+        for (int matchImdex = 0; matchImdex < matches.Count; matchImdex++)
         {
-            Match match = matches[i];
+            Match match = matches[matchImdex];
             var keyName = match.Groups[1].Value;
-            if (i >= arguments.Length)
+            if (matchImdex >= arguments.Length)
             {
                 argumentsList.Add((keyName, null));
                 continue;
             }
 
-            argumentsList.Add((keyName, arguments[i]));
-            var replacementValue = arguments[i]?.ToString() ?? NullValue;
+            argumentsList.Add((keyName, arguments[matchImdex]));
+            var replacementValue = arguments[matchImdex]?.ToString() ?? NullValue;
             int index = formattedMessage.ToString().IndexOf(match.Groups[0].Value, StringComparison.Ordinal);
 
             formattedMessage.Remove(index, match.Groups[0].Value.Length).Insert(index, replacementValue);
@@ -75,18 +75,18 @@ public partial class OlesLogger(OlesLoggerConfiguration configuration) : IOlesLo
         return (formattedMessage.ToString(), argumentsList);
     }
 
-    private static string GetMessageWithGeneralTemplate(GeneralTemplateFormatParameters generalTemplateFormatParameters)
+    private static string GetFinalFormattedString(FinalFormatParameters finalFormatParameters)
     {
-        return generalTemplateFormatParameters.GeneralTemplate.Replace("{TimeStamp}",
-                generalTemplateFormatParameters.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+        return finalFormatParameters.FinalFormatTemplate.Replace("{TimeStamp}",
+                finalFormatParameters.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss.fff"),
                 StringComparison.InvariantCultureIgnoreCase)
-            .Replace("{LogLevel}", generalTemplateFormatParameters.Level.ToString(),
+            .Replace("{LogLevel}", finalFormatParameters.LogLevel.ToString(),
                 StringComparison.InvariantCultureIgnoreCase)
-            .Replace("{Template}", generalTemplateFormatParameters.MessageTemplate,
+            .Replace("{Template}", finalFormatParameters.MessageTemplate,
                 StringComparison.InvariantCultureIgnoreCase)
-            .Replace("{FormattedMessage}", generalTemplateFormatParameters.FormattedMessage,
+            .Replace("{FormattedMessage}", finalFormatParameters.FormattedMessage,
                 StringComparison.InvariantCultureIgnoreCase)
-            .Replace("{Arguments}", generalTemplateFormatParameters.Arguments,
+            .Replace("{Arguments}", finalFormatParameters.Arguments,
                 StringComparison.InvariantCultureIgnoreCase);
     }
 }

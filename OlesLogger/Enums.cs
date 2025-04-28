@@ -1,6 +1,6 @@
 namespace OlesLogger;
 
-public enum LogLevel
+public enum LogLevels
 {
     Verbose = 0,
     Information = 1,

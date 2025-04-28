@@ -3,9 +3,9 @@ namespace OlesLogger;
 public interface ILogEntry
 {
     DateTimeOffset TimeStamp { get; init; }
-    LogLevel LogLevel { get; init; }
-    string Template { get; set; }
+    LogLevels LogLevel { get; init; }
+    string MessageTemplate { get; set; }
     string FormattedMessage { get; set; }
-    string GeneralFormattedMessage { get; set; }
+    string FinalFormattedMessage { get; set; }
     IList<(string key, object? value)> Arguments { get; set; }
 }

@@ -131,7 +131,7 @@ public class FileLogOutputTests
     private static ILogEntry CreateLogEntry(string message)
     {
         var mockEntry = new Mock<ILogEntry>();
-        mockEntry.Setup(e => e.GeneralFormattedMessage).Returns(message);
+        mockEntry.Setup(e => e.FinalFormattedMessage).Returns(message);
         return mockEntry.Object;
     }
 }
