@@ -35,13 +35,14 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
     private async ValueTask EnsureFileRolledAsync()
     {
         if(_fileLogOutputConfiguration.Disposed || _fileLogOutputConfiguration.Writer == null) return;
+        var currentDateTime = DateTimeOffset.UtcNow;
         
         if ((_fileLogOutputConfiguration.RollingSizeLimitMib != 0 && _fileLogOutputConfiguration.Writer.BaseStream.Length >= _fileLogOutputConfiguration.RollingSizeLimitMib * 1024 * 1024)
             || (_fileLogOutputConfiguration.RollingInterval != TimeSpan.Zero 
-                && DateTimeOffset.UtcNow - _fileLogOutputConfiguration.LastRollDateTimeOffset >= _fileLogOutputConfiguration.RollingInterval))
+                && currentDateTime - _fileLogOutputConfiguration.LastRollDateTimeOffset >= _fileLogOutputConfiguration.RollingInterval))
         {
             await RollFileAsync();
-            _fileLogOutputConfiguration.LastRollDateTimeOffset = DateTimeOffset.UtcNow;
+            _fileLogOutputConfiguration.LastRollDateTimeOffset = currentDateTime;
         }
     }
 
@@ -61,6 +62,9 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         
         _buffer.Enqueue(logEntry);
         Interlocked.Add(ref _currentBufferSize, logEntry.FinalFormattedMessage.Length * sizeof(char));
+        
+        var currentDateTime = DateTimeOffset.UtcNow;
+        if(_fileLogOutputConfiguration.LastRollDateTimeOffset == default) _fileLogOutputConfiguration.LastRollDateTimeOffset = currentDateTime;
         
         bool shouldFlush = _buffer.Count == 1;
         
@@ -92,10 +96,9 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         
         try
         {
+            await _semaphore.WaitAsync();
             if (!_buffer.IsEmpty)
             {
-                await _semaphore.WaitAsync();
-                
                 if (_buffer.IsEmpty) return;
                 
                 await EnsureFileRolledAsync();

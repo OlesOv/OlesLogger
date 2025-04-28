@@ -1,14 +1,10 @@
 namespace OlesLogger.LogOutputs.FileLogOutput;
 
-public class FileLogOutputConfiguration
+public class FileLogOutputConfiguration()
 {
     private string? _filePath;
 
-    public FileLogOutputConfiguration()
-    {
-    }
-
-    public FileLogOutputConfiguration(string filePath)
+    public FileLogOutputConfiguration(string filePath) : this()
     {
         ReinitConfig(filePath);
     }

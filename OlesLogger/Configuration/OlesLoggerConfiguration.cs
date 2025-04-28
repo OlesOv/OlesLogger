@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OlesLogger.LogOutputs;
 
 namespace OlesLogger.Configuration;
@@ -19,4 +20,6 @@ public sealed class OlesLoggerConfiguration
 
     public string FinalFormatTemplate { get; set; } = "{FormattedMessage}";
     internal List<ILogOutput> Outputs { get; } = [];
+
+    internal ILoggingBuilder LoggingBuilder { get; set; } = null!;
 }

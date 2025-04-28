@@ -5,13 +5,14 @@ using OlesLogger.LogOutputs;
 
 namespace OlesLogger.Configuration;
 
-public static class LoggingBuilderExtensions
+public static class OlesLoggerConfigurationExtensions
 {
-    public static ILoggingBuilder AddOlesLogger(this ILoggingBuilder services, OlesLoggerConfiguration configuration)
+    public static ILoggingBuilder AddOlesLogger(this ILoggingBuilder loggingBuilder, OlesLoggerConfiguration configuration)
     {
-        services.Services.TryAdd(ServiceDescriptor.Scoped<IOlesLogger, OlesLogger>(_ => new OlesLogger(configuration)));
+        configuration.LoggingBuilder = loggingBuilder;
+        loggingBuilder.Services.TryAdd(ServiceDescriptor.Scoped<IOlesLogger, OlesLogger>(_ => new OlesLogger(configuration)));
 
-        return services;
+        return loggingBuilder;
     }
     public static OlesLoggerConfiguration AddLogOutput(this OlesLoggerConfiguration configuration, ILogOutput logOutput)
     {
