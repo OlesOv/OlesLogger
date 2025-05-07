@@ -3,28 +3,33 @@ using System.Text;
 
 namespace OlesLogger.LogOutputs.FileLogOutput;
 
-public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
+public sealed class FileLogOutput : ILogOutput
 {
     private readonly FileLogOutputConfiguration _fileLogOutputConfiguration;
-    private readonly Timer? _consumerTimer;
+    private readonly PeriodicTimer _consumerTimer;
 
     public FileLogOutput(FileLogOutputConfiguration fileLogOutputConfiguration)
     {
         _fileLogOutputConfiguration = fileLogOutputConfiguration;
-        _consumerTimer = new Timer(
-            (_) => Consume().GetAwaiter().GetResult(),
-            null,
-            _fileLogOutputConfiguration.FlushFrequencyMs,
-            _fileLogOutputConfiguration.FlushFrequencyMs);
+        _consumerTimer = new(TimeSpan.FromMilliseconds(_fileLogOutputConfiguration.FlushFrequencyMs));
+        _ = StartAsynchronousLoop();
     }
 
 
-    public Task WriteEntryAsync(ILogEntry logEntry)
+    public ValueTask WriteEntryAsync(ILogEntry logEntry)
     {
         ObjectDisposedException.ThrowIf(_fileLogOutputConfiguration.Disposed, nameof(FileLogOutput));
 
         _fileLogOutputConfiguration.LogEntryQueue.TryAdd(logEntry);
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
+    }
+    
+    private async ValueTask StartAsynchronousLoop()
+    {
+        while (await _consumerTimer.WaitForNextTickAsync())
+        {
+            await Consume();
+        }
     }
     
     private async ValueTask Consume()
@@ -33,6 +38,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
         if (_fileLogOutputConfiguration.LogFileLastRolled == default)
             _fileLogOutputConfiguration.LogFileLastRolled = currentDateTime;
 
+        // To create file first
         bool shouldFlush = _fileLogOutputConfiguration.LogEntryQueue.Count == 1;
 
         if (_fileLogOutputConfiguration.LogEntryQueue.Count >= _fileLogOutputConfiguration.BufferCountLimit)
@@ -52,7 +58,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
 
         _fileLogOutputConfiguration.Writer ??=
             new StreamWriter(_fileLogOutputConfiguration.CurrentLogFilePath, true, Encoding.UTF8);
-        ;
+        
     }
 
     private async ValueTask EnsureFileRolledAsync()
@@ -111,8 +117,7 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
     {
         if (_fileLogOutputConfiguration.Disposed) return;
 
-        _consumerTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-        if (_consumerTimer != null) await _consumerTimer.DisposeAsync();
+        _consumerTimer.Dispose();
 
         await Consume();
         if (_fileLogOutputConfiguration.Writer != null)

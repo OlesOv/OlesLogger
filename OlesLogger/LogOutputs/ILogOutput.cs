@@ -1,6 +1,6 @@
 namespace OlesLogger.LogOutputs;
 
-public interface ILogOutput
+public interface ILogOutput : IAsyncDisposable
 {
-    Task WriteEntryAsync(ILogEntry logEntry);
+    ValueTask WriteEntryAsync(ILogEntry logEntry);
 }

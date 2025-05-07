@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OlesLogger", "OlesLogger\Ol
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{3BD9C3C8-3F16-4F8B-A900-9F7E37F7A2D0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCE74F36-A3C8-48D9-8F3D-8FAFA6CDEBFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BD9C3C8-3F16-4F8B-A900-9F7E37F7A2D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BD9C3C8-3F16-4F8B-A900-9F7E37F7A2D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BD9C3C8-3F16-4F8B-A900-9F7E37F7A2D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BD9C3C8-3F16-4F8B-A900-9F7E37F7A2D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

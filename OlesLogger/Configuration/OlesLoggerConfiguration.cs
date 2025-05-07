@@ -22,4 +22,5 @@ public sealed class OlesLoggerConfiguration
     internal List<ILogOutput> Outputs { get; } = [];
 
     internal ILoggingBuilder LoggingBuilder { get; set; } = null!;
+    public LogLevels MinimumLevel { get; set; } = LogLevels.Information;
 }

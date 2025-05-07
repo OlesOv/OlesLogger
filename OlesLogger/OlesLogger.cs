@@ -44,7 +44,7 @@ public partial class OlesLogger(OlesLoggerConfiguration configuration) : IOlesLo
         };
 
         Task.WhenAll(
-            configuration.Outputs.Select(logOutput => logOutput.WriteEntryAsync(entry))).GetAwaiter().GetResult();
+            configuration.Outputs.Select(logOutput => logOutput.WriteEntryAsync(entry).AsTask())).GetAwaiter().GetResult();
     }
 
 
@@ -88,5 +88,14 @@ public partial class OlesLogger(OlesLoggerConfiguration configuration) : IOlesLo
                 StringComparison.InvariantCultureIgnoreCase)
             .Replace("{Arguments}", finalFormatParameters.Arguments,
                 StringComparison.InvariantCultureIgnoreCase);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var logOutput in configuration.Outputs)
+        {
+            await logOutput.DisposeAsync();
+        }
+        
     }
 }

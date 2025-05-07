@@ -1,6 +1,6 @@
 namespace OlesLogger;
 
-public interface IOlesLogger
+public interface IOlesLogger : IAsyncDisposable
 {
     void Write(LogLevels logLevel, string? messageTemplate, params ReadOnlySpan<object?> args);
 

@@ -120,7 +120,7 @@ public class FileLogOutputTests
         // Act
         foreach (var message in messages)
         {
-            tasks.Add(_fileOutput.WriteEntryAsync(CreateLogEntry(message)));
+            tasks.Add(_fileOutput.WriteEntryAsync(CreateLogEntry(message)).AsTask());
         }
         await Task.WhenAll(tasks);
         await _fileOutput.DisposeAsync();
