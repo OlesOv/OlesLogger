@@ -4,45 +4,40 @@ namespace OlesLogger.LogOutputs.FileLogOutput;
 
 public static class FileLogOutputExtensions
 {
-    public static OlesLoggerConfiguration AddFileOutput(this OlesLoggerConfiguration configuration, Action<FileLogOutputConfiguration> fileLogOutputConfig)
+    private static readonly FileLogOutputConfigurationFactory FileLogOutputConfigurationFactory = new();
+    public static OlesLoggerConfiguration AddFileOutput(this OlesLoggerConfiguration loggerConfig, string logFilePath,
+        Action<FileLogOutputConfiguration> fileLogOutputConfig)
     {
-        var outputConfig = new FileLogOutputConfiguration();
-        fileLogOutputConfig(outputConfig);
-        return configuration.AddLogOutput(new FileLogOutput(outputConfig));
-    }
-    
-    public static FileLogOutputConfiguration SetFilePath(this FileLogOutputConfiguration configuration, string filePath)
-    {
-        configuration.FilePath = filePath;
-        return configuration;
+        var logOutputConfig = FileLogOutputConfigurationFactory.GetConfiguration(logFilePath);
+        fileLogOutputConfig(logOutputConfig);
+        return loggerConfig.AddLogOutput(new FileLogOutput(logOutputConfig));
     }
 
-            public static FileLogOutputConfiguration SetBufferSize(this FileLogOutputConfiguration configuration, int bufferSize)
-            {
-        configuration.BufferCountLimit = bufferSize;
-        return configuration;
-            }
-            
-            public static FileLogOutputConfiguration SetBufferTimeoutMs(this FileLogOutputConfiguration configuration, int timeoutMs)
-            {
-        configuration.BufferTimeoutMs = timeoutMs;
-        return configuration;
-            }
-            
-            public static FileLogOutputConfiguration SetBufferSizeLimit(this FileLogOutputConfiguration configuration, int sizeInBytes)
-            {
-        configuration.BufferSizeLimit = sizeInBytes;
-        return configuration;
-            }
-    public static FileLogOutputConfiguration SetRollingInterval(this FileLogOutputConfiguration configuration, TimeSpan interval)
+    public static FileLogOutputConfiguration SetBufferMaxCapacity(this FileLogOutputConfiguration fileLogOutputConfig,
+        int bufferSize)
     {
-        configuration.RollingInterval = interval;
-        return configuration;
+        fileLogOutputConfig.BufferCountLimit = bufferSize;
+        return fileLogOutputConfig;
     }
 
-    public static FileLogOutputConfiguration SetRollingSizeLimitInMib(this FileLogOutputConfiguration configuration, int fileSizeLimitInMib)
+    public static FileLogOutputConfiguration SetFlushFrequency(this FileLogOutputConfiguration fileLogOutputConfig,
+        int timeoutMs)
     {
-        configuration.RollingSizeLimitMib = fileSizeLimitInMib;
-        return configuration;
+        fileLogOutputConfig.FlushFrequencyMs = timeoutMs;
+        return fileLogOutputConfig;
+    }
+
+    public static FileLogOutputConfiguration SetRollingInterval(this FileLogOutputConfiguration fileLogOutputConfig,
+        TimeSpan interval)
+    {
+        fileLogOutputConfig.RollingInterval = interval;
+        return fileLogOutputConfig;
+    }
+
+    public static FileLogOutputConfiguration SetRollingSizeLimitInMib(this FileLogOutputConfiguration fileLogOutputConfig,
+        int fileSizeLimitInMib)
+    {
+        fileLogOutputConfig.RollingSizeLimitMib = fileSizeLimitInMib;
+        return fileLogOutputConfig;
     }
 }

@@ -6,43 +6,72 @@ namespace OlesLogger.LogOutputs.FileLogOutput;
 public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
 {
     private readonly FileLogOutputConfiguration _fileLogOutputConfiguration;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly ConcurrentQueue<ILogEntry> _buffer = new();
-    private int _currentBufferSize = 0;
-    private DateTimeOffset _lastFlushTime = DateTimeOffset.UtcNow;
-    private readonly Timer? _flushTimer;
-    
+    private readonly Timer? _consumerTimer;
+
     public FileLogOutput(FileLogOutputConfiguration fileLogOutputConfiguration)
     {
         _fileLogOutputConfiguration = fileLogOutputConfiguration;
-        if (_fileLogOutputConfiguration.BufferTimeoutMs > 0)
-        {
-            _flushTimer = new Timer(
-                (_) => FlushBufferAsync().GetAwaiter().GetResult(), 
-                null, 
-                _fileLogOutputConfiguration.BufferTimeoutMs, 
-                _fileLogOutputConfiguration.BufferTimeoutMs);
-        }
+        _consumerTimer = new Timer(
+            (_) => Consume().GetAwaiter().GetResult(),
+            null,
+            _fileLogOutputConfiguration.FlushFrequencyMs,
+            _fileLogOutputConfiguration.FlushFrequencyMs);
     }
 
+
+    public Task WriteEntryAsync(ILogEntry logEntry)
+    {
+        ObjectDisposedException.ThrowIf(_fileLogOutputConfiguration.Disposed, nameof(FileLogOutput));
+
+        _fileLogOutputConfiguration.LogEntryQueue.TryAdd(logEntry);
+        return Task.CompletedTask;
+    }
+    
+    private async ValueTask Consume()
+    {
+        var currentDateTime = DateTimeOffset.UtcNow;
+        if (_fileLogOutputConfiguration.LogFileLastRolled == default)
+            _fileLogOutputConfiguration.LogFileLastRolled = currentDateTime;
+
+        bool shouldFlush = _fileLogOutputConfiguration.LogEntryQueue.Count == 1;
+
+        if (_fileLogOutputConfiguration.LogEntryQueue.Count >= _fileLogOutputConfiguration.BufferCountLimit)
+        {
+            shouldFlush = true;
+        }
+
+        if (shouldFlush)
+        {
+            await FlushBufferAsync();
+        }
+    }
+    
     private void EnsureWriterInitialized()
     {
         if (_fileLogOutputConfiguration.Writer != null) return;
-        
-        _fileLogOutputConfiguration.Writer ??= new StreamWriter(_fileLogOutputConfiguration.CurrentFilePath, true, Encoding.UTF8);;
+
+        _fileLogOutputConfiguration.Writer ??=
+            new StreamWriter(_fileLogOutputConfiguration.CurrentLogFilePath, true, Encoding.UTF8);
+        ;
     }
 
     private async ValueTask EnsureFileRolledAsync()
     {
-        if(_fileLogOutputConfiguration.Disposed || _fileLogOutputConfiguration.Writer == null) return;
+        if (_fileLogOutputConfiguration.Disposed || _fileLogOutputConfiguration.Writer == null) return;
         var currentDateTime = DateTimeOffset.UtcNow;
+
+        bool shouldRollBySize = _fileLogOutputConfiguration.RollingSizeLimitMib != 0 &&
+                 _fileLogOutputConfiguration.Writer.BaseStream.Length >=
+                 _fileLogOutputConfiguration.RollingSizeLimitMib * 1024 * 1024;
+        var shouldRollByTime = _fileLogOutputConfiguration.RollingInterval != TimeSpan.Zero
+                               && currentDateTime - _fileLogOutputConfiguration.LogFileLastRolled >=
+                               _fileLogOutputConfiguration.RollingInterval;
         
-        if ((_fileLogOutputConfiguration.RollingSizeLimitMib != 0 && _fileLogOutputConfiguration.Writer.BaseStream.Length >= _fileLogOutputConfiguration.RollingSizeLimitMib * 1024 * 1024)
-            || (_fileLogOutputConfiguration.RollingInterval != TimeSpan.Zero 
-                && currentDateTime - _fileLogOutputConfiguration.LastRollDateTimeOffset >= _fileLogOutputConfiguration.RollingInterval))
+        if (shouldRollBySize || shouldRollByTime)
         {
             await RollFileAsync();
-            _fileLogOutputConfiguration.LastRollDateTimeOffset = currentDateTime;
+            _fileLogOutputConfiguration.LogFileLastRolled = currentDateTime;
+            EnsureWriterInitialized();
         }
     }
 
@@ -53,102 +82,45 @@ public sealed class FileLogOutput : ILogOutput, IAsyncDisposable
             await _fileLogOutputConfiguration.Writer.DisposeAsync();
             _fileLogOutputConfiguration.Writer = null;
         }
-        _fileLogOutputConfiguration.CurrentFilePath = string.Format(_fileLogOutputConfiguration.FilePathTemplate, _fileLogOutputConfiguration.FileNameBase, _fileLogOutputConfiguration.CurrentFileNumber++);
+
+        _fileLogOutputConfiguration.CurrentLogFilePath = string.Format(_fileLogOutputConfiguration.LogFilePathTemplate,
+            _fileLogOutputConfiguration.LogFileNameBase, _fileLogOutputConfiguration.CurrentLogFileNumber++);
     }
 
-    public async Task WriteEntryAsync(ILogEntry logEntry)
-    {
-        ObjectDisposedException.ThrowIf(_fileLogOutputConfiguration.Disposed, nameof(FileLogOutput));
-        
-        _buffer.Enqueue(logEntry);
-        Interlocked.Add(ref _currentBufferSize, logEntry.FinalFormattedMessage.Length * sizeof(char));
-        
-        var currentDateTime = DateTimeOffset.UtcNow;
-        if(_fileLogOutputConfiguration.LastRollDateTimeOffset == default) _fileLogOutputConfiguration.LastRollDateTimeOffset = currentDateTime;
-        
-        bool shouldFlush = _buffer.Count == 1;
-        
-        if (_buffer.Count >= _fileLogOutputConfiguration.BufferCountLimit)
-        {
-            shouldFlush = true;
-        }
-        
-        if (_fileLogOutputConfiguration.BufferSizeLimit > 0 && _currentBufferSize >= _fileLogOutputConfiguration.BufferSizeLimit)
-        {
-            shouldFlush = true;
-        }
-        
-        if (_fileLogOutputConfiguration.BufferTimeoutMs > 0 && _flushTimer == null && 
-            (DateTimeOffset.UtcNow - _lastFlushTime).TotalMilliseconds >= _fileLogOutputConfiguration.BufferTimeoutMs)
-        {
-            shouldFlush = true;
-        }
-        
-        if (shouldFlush)
-        {
-            await FlushBufferAsync();
-        }
-    }
-    
     private async ValueTask FlushBufferAsync()
     {
-        if (_buffer.IsEmpty || _fileLogOutputConfiguration.Disposed) return;
+        if (_fileLogOutputConfiguration.LogEntryQueue.IsCompleted || _fileLogOutputConfiguration.Disposed) return;
         
-        try
+        while (_fileLogOutputConfiguration.LogEntryQueue.TryTake(out var entry))
         {
-            await _semaphore.WaitAsync();
-            if (!_buffer.IsEmpty)
+            EnsureWriterInitialized();
+            await EnsureFileRolledAsync();
+            if (_fileLogOutputConfiguration.Writer != null)
             {
-                if (_buffer.IsEmpty) return;
-                
-                await EnsureFileRolledAsync();
-                EnsureWriterInitialized();
-                
-                while (_buffer.TryDequeue(out var entry))
-                {
-                    if (_fileLogOutputConfiguration.Writer != null)
-                    {
-                        await _fileLogOutputConfiguration.Writer.WriteLineAsync(entry.FinalFormattedMessage);
-                    }
-                }
-                
-                if (_fileLogOutputConfiguration.Writer != null)
-                {
-                    await _fileLogOutputConfiguration.Writer.FlushAsync();
-                }
-                
-                Interlocked.Exchange(ref _currentBufferSize, 0);
-                _lastFlushTime = DateTimeOffset.UtcNow;
+                await _fileLogOutputConfiguration.Writer.WriteLineAsync(entry.FinalFormattedMessage);
             }
         }
-        finally
+        
+        if (_fileLogOutputConfiguration.Writer != null)
         {
-            _semaphore.Release();
+            await _fileLogOutputConfiguration.Writer.FlushAsync();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_fileLogOutputConfiguration.Disposed) return;
-        
-        await _semaphore.WaitAsync();
-        try
-        {
-            _flushTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-            if(_flushTimer != null) await _flushTimer.DisposeAsync();
-        
-            await FlushBufferAsync();
-            if (_fileLogOutputConfiguration.Writer != null)
-            {
-                await _fileLogOutputConfiguration.Writer.DisposeAsync();
-                _fileLogOutputConfiguration.Writer = null;
-            }
 
-            _fileLogOutputConfiguration.Disposed = true;
-        }
-        finally
+        _consumerTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        if (_consumerTimer != null) await _consumerTimer.DisposeAsync();
+
+        await Consume();
+        if (_fileLogOutputConfiguration.Writer != null)
         {
-            _semaphore.Release();
+            await _fileLogOutputConfiguration.Writer.DisposeAsync();
+            _fileLogOutputConfiguration.Writer = null;
         }
+
+        _fileLogOutputConfiguration.Disposed = true;
     }
 }
